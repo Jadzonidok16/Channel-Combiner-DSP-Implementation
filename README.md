@@ -2,7 +2,7 @@
 # Audio Channel Combination - DSP Implementation
 
 ## Project Overview
-[cite_start]The objective of this project is to implement a multi-channel audio combination system based on a specific hardware-oriented schematic and control table[cite: 1, 2]. [cite_start]The system utilizes 2nd order IIR filters to process and mix signals across various output modes[cite: 2].
+The objective of this project is to implement a multi-channel audio combination system based on a specific hardware-oriented schematic and control table[cite: 1, 2]. [cite_start]The system utilizes 2nd order IIR filters to process and mix signals across various output modes[cite: 2].
 
 ## Development Phases
 [cite_start]The development is structured into four distinct stages (Models) to ensure a reliable transition from a high-level reference to hardware-optimized code[cite: 4]:
