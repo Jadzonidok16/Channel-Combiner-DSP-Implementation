@@ -1,0 +1,216 @@
+
+_SIGNALPROC_ASM	# comment if we do not want assembler processing
+
+	.if defined (_SIGNALPROC_ASM)
+	
+_BLOCK_SIZE .equ 16
+_L_CH .equ 0
+_R_CH .equ 1
+_C_CH .equ 2
+_LS_CH .equ 3
+_RS_CH .equ 4
+
+	.xdata_ovly
+
+_MINUS_4DB  	.dw (0.630957)
+_MINUS_10DB  	.dw (0.316228)
+_MINUS_3P9DB 	.dw (0.638263)
+_MINUS_9P5DB 	.dw (0.334965)
+
+	.public _signalProcessing
+	.extern _limiterThreshold
+	.extern _variablesGain
+	.extern _iir_l_lpf11
+	.extern _iir_l_hpf3
+	.extern _iir_l_hpf5
+	.extern _iir_r_lpf11
+	.extern _iir_r_hpf3
+	.extern _iir_r_hpf5
+		
+	.code_ovly
+	
+	# prema CCC2 pozivnoj konvenciji:
+	# i0 - pIn
+	# i1 - pOut
+_signalProcessing:
+	# na raspolaganju a0 a1 b0 b1 i4 i5
+	
+	do(_BLOCK_SIZE), >loop
+		# ------------------------------------------------
+		# prva faza, primenjujemo input gainove na ulazne signale
+		# *samplePtrInL = *samplePtrInL * *variablesGainPtrL;
+		# *samplePtrInR = *samplePtrInR * *variablesGainPtrR;
+		i5 = i0 + (_L_CH * _BLOCK_SIZE) 
+		x0 = ymem[i5]
+		y0 = xmem[_variablesGain]
+		a0 = x0 * y0
+		ymem[i5] = a0
+		
+		i5 = i0 + (_R_CH * _BLOCK_SIZE) 
+		x0 = ymem[i5]
+		y0 = xmem[_variablesGain + 1]
+		a0 = x0 * y0
+		ymem[i5] = a0
+		
+		# ------------------------------------------------
+		# OBRADA IZ LEVOG KANALA
+		# ------------------------------------------------
+		# druga faza, primenjujemo LPF 11kHz i rezultat saljemo na izlaz Ls
+		# 	temp3 = iir_l_lpf11((DSPaccum)*samplePtrInL);
+		#	*samplePtrOutLs = saturation(temp3);
+		i5 = i0 + (_L_CH * _BLOCK_SIZE) 
+		x0 = ymem[i5]
+		a0 = x0
+		xmem[i7] = i0; i7+=1
+		xmem[i7] = i5
+		call _iir_l_lpf11
+		i5 = xmem[i7]; i7-=1
+		i0 = xmem[i7]
+		b1 = a0
+		
+		# saturation ...
+		b0 = xmem[_limiterThreshold]
+		if(b0 < a0) a0 = b0
+		b0 = -b0
+		if(b0 > a0) a0 = b0
+
+		i5 = i1 + (_LS_CH * _BLOCK_SIZE)
+		ymem[i5] = a0
+		# ------------------------------------------------
+		# treca faza, primenjujemo HPF 5kHz, smanjujemo za -10dB i rezultat saljemo na izlaz C
+		# temp1 = iir_l_hpf5((DSPaccum)*samplePtrInL);
+		# tempFract = temp1 >> 1;
+		# tempFract = tempFract * MINUS_10DB;
+		# temp1 = tempFract << 1;
+		# *samplePtrOutC = saturation(temp1);
+		i5 = i0 + (_L_CH * _BLOCK_SIZE)
+		x0 = ymem[i5]
+		a0 = x0	
+		xmem[i7] = i0; i7+=1
+		xmem[i7] = i5
+		call _iir_l_hpf5
+		i5 = xmem[i7]; i7-=1
+		i0 = xmem[i7]
+		a0 = a0 >> 1
+		x0 = a0
+		y0 = xmem[_MINUS_10DB]
+		a0 = x0 * y0
+		a0 = a0 << 1
+		a1 = a0
+		
+		# saturation ...
+		b0 = xmem[_limiterThreshold]	
+		if(b0 < a0) a0 = b0
+		b0 = -b0
+		if(b0 > a0) a0 = b0
+		
+		i5 = i1 + (_C_CH * _BLOCK_SIZE)
+		ymem[i5] = a0
+		# ------------------------------------------------
+		# cetvrta faza, primenjujemo HPF 3kHz, smanjujemo za -4dB, sabiramo sa C izlaznim kanalom i saljemo na izlaz L
+		# temp2 = iir_l_hpf3(temp3);
+		# tempFract = temp2 >> 1;
+		# tempFract = tempFract * MINUS_4DB;
+		# temp2 = tempFract << 1;
+		# *samplePtrOutL = saturation(temp2 + temp1);
+		a0 = b1
+		xmem[i7] = i0; i7+=1
+		xmem[i7] = i5
+		call _iir_l_hpf3
+		i5 = xmem[i7]; i7-=1
+		i0 = xmem[i7]
+		a0 = a0 >> 1
+		x0 = a0
+		y0 = xmem[_MINUS_4DB]
+		a0 = x0 * y0
+		a0 = a0 << 1
+		a0 = a0 + a1
+		
+		# saturation ...
+		b0 = xmem[_limiterThreshold]	
+		if(b0 < a0) a0 = b0
+		b0 = -b0
+		if(b0 > a0) a0 = b0
+			
+		i5 = i1 + (_L_CH * _BLOCK_SIZE)
+		ymem[i5] = a0
+		# ------------------------------------------------
+		# OBRADA DESNOG KANALA
+		# ------------------------------------------------
+		# peta faza, primenjujemo HPF 5kHz
+		#	temp3 = iir_r_lpf11((DSPaccum)*samplePtrInR);
+		#	*samplePtrOutRs = saturation(temp3);
+		i5 = i0 + (_R_CH * _BLOCK_SIZE) 
+		x0 = ymem[i5]
+		a0 = x0		
+		xmem[i7] = i0; i7+=1
+		xmem[i7] = i5
+		call _iir_r_lpf11
+		i5 = xmem[i7]; i7-=1
+		i0 = xmem[i7]
+		b1 = a0	
+		
+		# saturation ...
+		b0 = xmem[_limiterThreshold]	
+		if(b0 < a0) a0 = b0
+		b0 = -b0
+		if(b0 > a0) a0 = b0
+			
+		i5 = i1 + (_RS_CH * _BLOCK_SIZE)
+		ymem[i5] = a0
+		# ------------------------------------------------
+		# sesta faza, primenjujemo HPF 5kHz, smanjujemo za -9.5dB i smestamo u temp
+		# temp1 = iir_r_hpf5((DSPaccum)*samplePtrInR);
+		# tempFract = temp1 >> 1;
+		# tempFract = tempFract * MINUS_9P5DB;
+		# temp1 = tempFract << 1;
+		i5 = i0 + (_R_CH * _BLOCK_SIZE) 
+		x0 = ymem[i5]
+		a0 = x0
+		xmem[i7] = i0; i7+=1
+		xmem[i7] = i5
+		call _iir_r_hpf5
+		i5 = xmem[i7]; i7-=1
+		i0 = xmem[i7]	
+		a0 = a0 >> 1
+		x0 = a0
+		y0 = xmem[_MINUS_9P5DB]
+		a0 = x0 * y0
+		a0 = a0 << 1
+		a1 = a0	
+		# ------------------------------------------------
+		# sedma faza, primenjujemo HPF 3kHz, smanjujemo za -3.9dB, sabiramo sa temp i saljemo na izlaz R
+		# temp2 = iir_r_hpf3(temp3);
+		# tempFract = temp2 >> 1;
+		# tempFract = tempFract * MINUS_3P9DB;
+		# temp2 = tempFract << 1;
+		# *samplePtrOutR = saturation(temp1 + temp2);
+		a0 = b1
+		xmem[i7] = i0; i7+=1
+		xmem[i7] = i5
+		call _iir_r_hpf3
+		i5 = xmem[i7]; i7-=1
+		i0 = xmem[i7]	
+		a0 = a0 >> 1
+		x0 = a0
+		y0 = xmem[_MINUS_3P9DB]
+		a0 = x0 * y0
+		a0 = a0 << 1
+		a0 = a0 + a1
+		
+		# saturation ...
+		b0 = xmem[_limiterThreshold]	
+		if(b0 < a0) a0 = b0
+		b0 = -b0
+		if(b0 > a0) a0 = b0
+			
+		i5 = i1 + (_R_CH * _BLOCK_SIZE)
+		ymem[i5] = a0
+		
+		i0+=1
+%loop:	i1+=1
+
+	ret
+
+	.endif
+	

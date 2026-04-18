@@ -1,0 +1,292 @@
+1     						
+2     	 0000				_SIGNALPROC_ASM	# comment if we do not want assembler processing
+3     						
+4     							.if defined (_SIGNALPROC_ASM)
+5     							
+6     	 0010				_BLOCK_SIZE .equ 16
+7     	 0000				_L_CH .equ 0
+8     	 0001				_R_CH .equ 1
+9     	 0002				_C_CH .equ 2
+10    	 0003				_LS_CH .equ 3
+11    	 0004				_RS_CH .equ 4
+12    						
+13    							.xdata_ovly
+13     >> start of macro: .xdata_ovly
+1+    									seg_single , "X_OVLY", X
+1+     >> start of macro: seg_single
+1+    						  .if ( "" != "" ) & defined( ___SegStart_X_ )
+2+    						    segment
+3+    						  .else
+4+    						    segment "X_OVLY"
+5+    							.if "" != ""
+6+    						___SegStart_X_
+7+    							.endif
+8+    						  .endif
+9+    							#RememberSegmentType
+10+    >> end of macro: seg_single
+2+     >> end of macro: .xdata_ovly
+14    						
+15    	 0000				_MINUS_4DB  	.dw (0.630957)
+	 0000	 50C332F0	 
+16    	 0001				_MINUS_10DB  	.dw (0.316228)
+	 0001	 287A28BB	 
+17    	 0002				_MINUS_3P9DB 	.dw (0.638263)
+	 0002	 51B29A1C	 
+18    	 0003				_MINUS_9P5DB 	.dw (0.334965)
+	 0003	 2AE02214	 
+19    						
+20    	 0000					.public _signalProcessing
+21    	 0000					.extern _limiterThreshold
+22    	 0000					.extern _variablesGain
+23    	 0000					.extern _iir_l_lpf11
+24    	 0000					.extern _iir_l_hpf3
+25    	 0000					.extern _iir_l_hpf5
+26    	 0000					.extern _iir_r_lpf11
+27    	 0000					.extern _iir_r_hpf3
+28    	 0000					.extern _iir_r_hpf5
+29    								
+30    							.code_ovly
+30     >> start of macro: .code_ovly
+1+    									seg_single , "CODE_OVLY", CODE
+1+     >> start of macro: seg_single
+1+    						  .if ( "" != "" ) & defined( ___SegStart_CODE_ )
+2+    						    segment
+3+    						  .else
+4+    						    segment "CODE_OVLY"
+5+    							.if "" != ""
+6+    						___SegStart_CODE_
+7+    							.endif
+8+    						  .endif
+9+    							#RememberSegmentType
+10+    >> end of macro: seg_single
+2+     >> end of macro: .code_ovly
+31    							
+32    							# prema CCC2 pozivnoj konvenciji:
+33    							# i0 - pIn
+34    							# i1 - pOut
+35    	 0000				_signalProcessing:
+36    							# na raspolaganju a0 a1 b0 b1 i4 i5
+37    							
+38    	 0000	 81000070		do(_BLOCK_SIZE), >loop
+39    								# ------------------------------------------------
+40    								# prva faza, primenjujemo input gainove na ulazne signale
+41    								# *samplePtrInL = *samplePtrInL * *variablesGainPtrL;
+42    								# *samplePtrInR = *samplePtrInR * *variablesGainPtrR;
+43    	 0001	 85050000			i5 = i0 + (_L_CH * _BLOCK_SIZE) 
+44    	 0002	 80940005			x0 = ymem[i5]
+45    	 0003	 84040000			y0 = xmem[_variablesGain]
+46    	 0004	 00002400			a0 = x0 * y0
+47    	 0005	 88D40005			ymem[i5] = a0
+48    								
+49    	 0006	 85050010			i5 = i0 + (_R_CH * _BLOCK_SIZE) 
+50    	 0007	 80940005			x0 = ymem[i5]
+51    	 0008	 84040000			y0 = xmem[_variablesGain + 1]
+52    	 0009	 00002400			a0 = x0 * y0
+53    	 000A	 88D40005			ymem[i5] = a0
+54    								
+55    								# ------------------------------------------------
+56    								# OBRADA IZ LEVOG KANALA
+57    								# ------------------------------------------------
+58    								# druga faza, primenjujemo LPF 11kHz i rezultat saljemo na izlaz Ls
+59    								# 	temp3 = iir_l_lpf11((DSPaccum)*samplePtrInL);
+60    								#	*samplePtrOutLs = saturation(temp3);
+61    	 000B	 85050000			i5 = i0 + (_L_CH * _BLOCK_SIZE) 
+62    	 000C	 80940005			x0 = ymem[i5]
+63    	 000D	 40487FFF			a0 = x0
+64    	 000E	 B0540017			xmem[i7] = i0; i7+=1
+65    	 000F	 B9540007			xmem[i7] = i5
+66    	 0010	 80880000			call _iir_l_lpf11
+67    	 0011	 B9140027			i5 = xmem[i7]; i7-=1
+68    	 0012	 B0140007			i0 = xmem[i7]
+69    	 0013	 484D7FFF			b1 = a0
+70    								
+71    								# saturation ...
+72    	 0014	 8C040000			b0 = xmem[_limiterThreshold]
+73    	 0015	 00004860			if(b0 < a0) a0 = b0
+74    	 0016	 00004C84			b0 = -b0
+75    	 0017	 00004820			if(b0 > a0) a0 = b0
+76    						
+77    	 0018	 85150030			i5 = i1 + (_LS_CH * _BLOCK_SIZE)
+78    	 0019	 88D40005			ymem[i5] = a0
+79    								# ------------------------------------------------
+80    								# treca faza, primenjujemo HPF 5kHz, smanjujemo za -10dB i rezultat saljemo na izlaz C
+81    								# temp1 = iir_l_hpf5((DSPaccum)*samplePtrInL);
+82    								# tempFract = temp1 >> 1;
+83    								# tempFract = tempFract * MINUS_10DB;
+84    								# temp1 = tempFract << 1;
+85    								# *samplePtrOutC = saturation(temp1);
+86    	 001A	 85050000			i5 = i0 + (_L_CH * _BLOCK_SIZE)
+87    	 001B	 80940005			x0 = ymem[i5]
+88    	 001C	 40487FFF			a0 = x0	
+89    	 001D	 B0540017			xmem[i7] = i0; i7+=1
+90    	 001E	 B9540007			xmem[i7] = i5
+91    	 001F	 80880000			call _iir_l_hpf5
+92    	 0020	 B9140027			i5 = xmem[i7]; i7-=1
+93    	 0021	 B0140007			i0 = xmem[i7]
+94    	 0022	 00004E40			a0 = a0 >> 1
+95    	 0023	 48407FFF			x0 = a0
+96    	 0024	 84040001			y0 = xmem[_MINUS_10DB]
+97    	 0025	 00002400			a0 = x0 * y0
+98    	 0026	 00004E00			a0 = a0 << 1
+99    	 0027	 48497FFF			a1 = a0
+100   								
+101   								# saturation ...
+102   	 0028	 8C040000			b0 = xmem[_limiterThreshold]	
+103   	 0029	 00004860			if(b0 < a0) a0 = b0
+104   	 002A	 00004C84			b0 = -b0
+105   	 002B	 00004820			if(b0 > a0) a0 = b0
+106   								
+107   	 002C	 85150020			i5 = i1 + (_C_CH * _BLOCK_SIZE)
+108   	 002D	 88D40005			ymem[i5] = a0
+109   								# ------------------------------------------------
+110   								# cetvrta faza, primenjujemo HPF 3kHz, smanjujemo za -4dB, sabiramo sa C izlaznim kanalom i saljemo na izlaz L
+111   								# temp2 = iir_l_hpf3(temp3);
+112   								# tempFract = temp2 >> 1;
+113   								# tempFract = tempFract * MINUS_4DB;
+114   								# temp2 = tempFract << 1;
+115   								# *samplePtrOutL = saturation(temp2 + temp1);
+116   	 002E	 4D487FFF			a0 = b1
+117   	 002F	 B0540017			xmem[i7] = i0; i7+=1
+118   	 0030	 B9540007			xmem[i7] = i5
+119   	 0031	 80880000			call _iir_l_hpf3
+120   	 0032	 B9140027			i5 = xmem[i7]; i7-=1
+121   	 0033	 B0140007			i0 = xmem[i7]
+122   	 0034	 00004E40			a0 = a0 >> 1
+123   	 0035	 48407FFF			x0 = a0
+124   	 0036	 84040000			y0 = xmem[_MINUS_4DB]
+125   	 0037	 00002400			a0 = x0 * y0
+126   	 0038	 00004E00			a0 = a0 << 1
+127   	 0039	 00004408			a0 = a0 + a1
+128   								
+129   								# saturation ...
+130   	 003A	 8C040000			b0 = xmem[_limiterThreshold]	
+131   	 003B	 00004860			if(b0 < a0) a0 = b0
+132   	 003C	 00004C84			b0 = -b0
+133   	 003D	 00004820			if(b0 > a0) a0 = b0
+134   									
+135   	 003E	 85150000			i5 = i1 + (_L_CH * _BLOCK_SIZE)
+136   	 003F	 88D40005			ymem[i5] = a0
+137   								# ------------------------------------------------
+138   								# OBRADA DESNOG KANALA
+139   								# ------------------------------------------------
+140   								# peta faza, primenjujemo HPF 5kHz
+141   								#	temp3 = iir_r_lpf11((DSPaccum)*samplePtrInR);
+142   								#	*samplePtrOutRs = saturation(temp3);
+143   	 0040	 85050010			i5 = i0 + (_R_CH * _BLOCK_SIZE) 
+144   	 0041	 80940005			x0 = ymem[i5]
+145   	 0042	 40487FFF			a0 = x0		
+146   	 0043	 B0540017			xmem[i7] = i0; i7+=1
+147   	 0044	 B9540007			xmem[i7] = i5
+148   	 0045	 80880000			call _iir_r_lpf11
+149   	 0046	 B9140027			i5 = xmem[i7]; i7-=1
+150   	 0047	 B0140007			i0 = xmem[i7]
+151   	 0048	 484D7FFF			b1 = a0	
+152   								
+153   								# saturation ...
+154   	 0049	 8C040000			b0 = xmem[_limiterThreshold]	
+155   	 004A	 00004860			if(b0 < a0) a0 = b0
+156   	 004B	 00004C84			b0 = -b0
+157   	 004C	 00004820			if(b0 > a0) a0 = b0
+158   									
+159   	 004D	 85150040			i5 = i1 + (_RS_CH * _BLOCK_SIZE)
+160   	 004E	 88D40005			ymem[i5] = a0
+161   								# ------------------------------------------------
+162   								# sesta faza, primenjujemo HPF 5kHz, smanjujemo za -9.5dB i smestamo u temp
+163   								# temp1 = iir_r_hpf5((DSPaccum)*samplePtrInR);
+164   								# tempFract = temp1 >> 1;
+165   								# tempFract = tempFract * MINUS_9P5DB;
+166   								# temp1 = tempFract << 1;
+167   	 004F	 85050010			i5 = i0 + (_R_CH * _BLOCK_SIZE) 
+168   	 0050	 80940005			x0 = ymem[i5]
+169   	 0051	 40487FFF			a0 = x0
+170   	 0052	 B0540017			xmem[i7] = i0; i7+=1
+171   	 0053	 B9540007			xmem[i7] = i5
+172   	 0054	 80880000			call _iir_r_hpf5
+173   	 0055	 B9140027			i5 = xmem[i7]; i7-=1
+174   	 0056	 B0140007			i0 = xmem[i7]	
+175   	 0057	 00004E40			a0 = a0 >> 1
+176   	 0058	 48407FFF			x0 = a0
+177   	 0059	 84040003			y0 = xmem[_MINUS_9P5DB]
+178   	 005A	 00002400			a0 = x0 * y0
+179   	 005B	 00004E00			a0 = a0 << 1
+180   	 005C	 48497FFF			a1 = a0	
+181   								# ------------------------------------------------
+182   								# sedma faza, primenjujemo HPF 3kHz, smanjujemo za -3.9dB, sabiramo sa temp i saljemo na izlaz R
+183   								# temp2 = iir_r_hpf3(temp3);
+184   								# tempFract = temp2 >> 1;
+185   								# tempFract = tempFract * MINUS_3P9DB;
+186   								# temp2 = tempFract << 1;
+187   								# *samplePtrOutR = saturation(temp1 + temp2);
+188   	 005D	 4D487FFF			a0 = b1
+189   	 005E	 B0540017			xmem[i7] = i0; i7+=1
+190   	 005F	 B9540007			xmem[i7] = i5
+191   	 0060	 80880000			call _iir_r_hpf3
+192   	 0061	 B9140027			i5 = xmem[i7]; i7-=1
+193   	 0062	 B0140007			i0 = xmem[i7]	
+194   	 0063	 00004E40			a0 = a0 >> 1
+195   	 0064	 48407FFF			x0 = a0
+196   	 0065	 84040002			y0 = xmem[_MINUS_3P9DB]
+197   	 0066	 00002400			a0 = x0 * y0
+198   	 0067	 00004E00			a0 = a0 << 1
+199   	 0068	 00004408			a0 = a0 + a1
+200   								
+201   								# saturation ...
+202   	 0069	 8C040000			b0 = xmem[_limiterThreshold]	
+203   	 006A	 00004860			if(b0 < a0) a0 = b0
+204   	 006B	 00004C84			b0 = -b0
+205   	 006C	 00004820			if(b0 > a0) a0 = b0
+206   									
+207   	 006D	 85150010			i5 = i1 + (_R_CH * _BLOCK_SIZE)
+208   	 006E	 88D40005			ymem[i5] = a0
+209   								
+210   	 006F	 02087FFF			i0+=1
+211   	 0070	 02097FFF	%loop:	i1+=1
+212   						
+213   	 0071	 81880000		ret
+214   						
+215   							.endif
+216   							
+				 SYMBOL TABLE 
+
+    Name                                                                                    Type                  Value 
+
+_BLOCK_SIZE                                                                     					 Number				          16 (10H)
+_COMMON_INC_PATH_                                                               					 Define                 "C:/CirrusDSP/crystal32/common/inc/"
+_C_CH                                                                           					 Number				          2 (2H)
+_DSP_                                                                           					 Define                 "a"
+_LOCAL_INC_PATH_                                                                					 Define                 "inc/"
+_LOCAL_SRC_PATH_                                                                					 Define                 "src/"
+_LS_CH                                                                          					 Number				          3 (3H)
+_L_CH                                                                           					 Number				         0 (0H)
+_MINUS_10DB                                                                     			         Relocatable         signalProc_GEN_0000:0001H
+_MINUS_3P9DB                                                                    			         Relocatable         signalProc_GEN_0000:0002H
+_MINUS_4DB                                                                      			         Relocatable         signalProc_GEN_0000:0000H
+_MINUS_9P5DB                                                                    			         Relocatable         signalProc_GEN_0000:0003H
+_MUI_VERSION_                                                                   					 Define                 "020000"
+_OVLY_                                                                          					 Define                 "standalone"
+_OVLY_REVISION_                                                                 					 Define                 "020000"
+_ROUTER_INC_PATH_                                                               					 Define                 "rom_inc/"
+_RS_CH                                                                          					 Number				          4 (4H)
+_R_CH                                                                           					 Number				          1 (1H)
+_SIGNALPROC_ASM                                                                 			  Unused Relocatable        __INIT:0000H
+_SLOT_                                                                          					 Define                 "0"
+_TARGET_FAMILY_                                                                 					 Define                 "crystal32"
+_TOOLS_VERSION_                                                                 					 Define                 "0x0701"
+_VERSION_                                                                       					 Define                 "00"
+__CASM_VER__                                                                    			  Unused Variable		        0 (701H)
+_iir_l_hpf3                                                                     					 External   
+_iir_l_hpf5                                                                     					 External   
+_iir_l_lpf11                                                                    					 External   
+_iir_r_hpf3                                                                     					 External   
+_iir_r_hpf5                                                                     					 External   
+_iir_r_lpf11                                                                    					 External   
+_limiterThreshold                                                               					 External   
+_signalProcessing                                                               			  Public Relocatable       signalProc_GEN_0001:0000H
+_variablesGain                                                                  					 External   
+
+	       SEGMENTS:
+
+Size			  Name										 Class
+0000H	 __INIT                                  			 CODE                                    
+0004H	 signalProc_GEN_0000                     			 X_OVLY                                  
+0072H	 signalProc_GEN_0001                     			 CODE_OVLY                               

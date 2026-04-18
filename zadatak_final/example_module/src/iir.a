@@ -1,0 +1,155 @@
+
+_SIGNALPROC_ASM	# comment if we do not want assembler processing
+
+	.if defined (_SIGNALPROC_ASM)
+	
+	.public _iir_l_lpf11
+	.public _iir_l_hpf3
+	.public _iir_l_hpf5
+	.public _iir_r_lpf11
+	.public _iir_r_hpf3
+	.public _iir_r_hpf5
+	
+	.xdata_ovly
+
+_hpf_3khz_coeffs	.dw (0.3785533586), (-0.7571067172), (0.3785533586), (0.5), (-0.7271217931), (0.2870309576)
+_hpf_5khz_coeffs	.dw (0.3134227107), (-0.6268454214), (0.3134227107), (0.5), (-0.5546143963), (0.199076147)
+_lpf_11khz_coeffs	.dw (0.1277843146), (0.2555686291), (0.1277843146), (0.5), (-0.07673238622), (0.08786964451)
+
+	.ydata_ovly
+
+_history0	.bsc(2), (0)
+_history1	.bsc(2), (0)
+_history2	.bsc(2), (0)
+_history3	.bsc(2), (0)
+_history4	.bsc(2), (0)
+_history5	.bsc(2), (0)
+_history6	.bsc(2), (0)
+_history7	.bsc(2), (0)
+_history8	.bsc(2), (0)
+_history9	.bsc(2), (0)
+_history10	.bsc(2), (0)
+_history11	.bsc(2), (0)
+		
+	.code_ovly
+	
+	# a0 input
+	# coefficients i0
+	# x_history i1
+	# y_history i4
+_second_order_iir:
+	ymem[i7] = b3g; i7+=1										
+	ymem[i7] = b3h; i7+=1										
+	ymem[i7] = b3l; i7+=1										# Stavljamo na stek ono sto nije dostupno za upotrebu
+
+	y0 = a0														# y0 = input
+	# zakomentarisati i0+=1 za neoptimizovanu verziju
+	x0 = xmem[i0]; i0+=1	# <-								# x0 = koeficijent
+	uhalfword(b3) = (0)											# output = 0
+	
+	// ----------------------------
+	/*b3 += x0 * y0
+	i0+=1
+	x0 = xmem[i0]
+	y0 = ymem[i4]
+	b3 += x0 * y0
+	i0+=1
+	i4+=1
+	x0 = xmem[i0]
+	y0 = ymem[i4]
+	b3 += x0 * y0
+	i0+=1
+	i0+=1
+	x0 = xmem[i0]
+	y0 = ymem[i5]
+	b3 -= x0 * y0
+	i0+=1
+	i5+=1
+	x0 = xmem[i0]
+	y0 = ymem[i5]
+	b3 -= x0 * y0
+	
+	i5-=1
+	y0 = ymem[i5]
+	i5+=1
+	i4-=1*/
+	// ----------------------------
+	
+	b3 += x0 * y0; x0 = xmem[i0]; i0+=1; y0 = ymem[i4]; i4+=1	
+	b3 += x0 * y0; x0 = xmem[i0]; i0+=1; y0 = ymem[i4];	i4-=1	
+	i0+=1
+	b3 += x0 * y0; x0 = xmem[i0]; i0+=1; y0 = ymem[i5]; i5+=1	
+	b3 -= x0 * y0; x0 = xmem[i0]; y0 = ymem[i5]; i5-=1			
+	b3 -= x0 * y0; y0 = ymem[i5]; i5+=1		
+	
+	// ----------------------------				
+
+	b3 = b3 << 1												# Shiftujemo zato sto su svi koeficijenti bili skalirani (>> 1)
+	
+	ymem[i5] = y0; i5-=1										
+	ymem[i5] = b3;												
+	y0 = ymem[i4]; i4+=1										
+	ymem[i4] = y0; i4-=1										
+	ymem[i4] = a0												
+	
+	AnyReg(a0l, b3l)											
+	AnyReg(a0h, b3h)											
+	AnyReg(a0g, b3g)											# prebacujemo b3 u a0 zato sto se u a0 mora nalaziti povratna vrednost
+
+	i7-=1
+	b3l = ymem[i7]; i7-=1
+	b3h = ymem[i7]; i7-=1
+	b3g = ymem[i7]
+
+	ret
+
+_iir_l_lpf11:
+	i0 = (_lpf_11khz_coeffs)	# postavljamo argumente funkcije
+	i4 = (_history0)
+	i5 = (_history1)
+	call _second_order_iir
+	
+	ret
+	
+_iir_l_hpf3:
+	i0 = (_hpf_3khz_coeffs)
+	i4 = (_history2)
+	i5 = (_history3)
+	call _second_order_iir
+	
+	ret
+	
+_iir_l_hpf5:
+	i0 = (_hpf_5khz_coeffs)
+	i4 = (_history4)
+	i5 = (_history5)
+	call _second_order_iir
+	
+	ret
+	
+_iir_r_lpf11:
+	i0 = (_lpf_11khz_coeffs)
+	i4 = (_history6)
+	i5 = (_history7)
+	call _second_order_iir
+	
+	ret
+	
+_iir_r_hpf3:
+	i0 = (_hpf_3khz_coeffs)
+	i4 = (_history8)
+	i5 = (_history9)
+	call _second_order_iir
+	
+	ret
+	
+_iir_r_hpf5:
+	i0 = (_hpf_5khz_coeffs)
+	i4 = (_history10)
+	i5 = (_history11)
+	call _second_order_iir
+	
+	ret
+	
+	.endif
+		

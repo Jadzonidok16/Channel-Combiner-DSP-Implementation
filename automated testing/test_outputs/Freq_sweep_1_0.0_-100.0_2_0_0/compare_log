@@ -1,0 +1,17 @@
+"C:\Users\Administrator\Desktop\projekat\automated testing\Tools\PCMCompare.exe" -b16 "C:\Users\Administrator\Desktop\projekat\automated testing\test_outputs\Freq_sweep_1_0.0_-100.0_2_0_0\out_Freq_sweep_1_0.0_-100.0_2_0_0_m0.wav" "C:\Users\Administrator\Desktop\projekat\automated testing\test_outputs\Freq_sweep_1_0.0_-100.0_2_0_0\out_Freq_sweep_1_0.0_-100.0_2_0_0_m1.wav"
+      No differences encountered!
+
+      No differences encountered!
+
+"C:\Users\Administrator\Desktop\projekat\automated testing\Tools\PCMCompare.exe" -b16 "C:\Users\Administrator\Desktop\projekat\automated testing\test_outputs\Freq_sweep_1_0.0_-100.0_2_0_0\out_Freq_sweep_1_0.0_-100.0_2_0_0_m1.wav" "C:\Users\Administrator\Desktop\projekat\automated testing\test_outputs\Freq_sweep_1_0.0_-100.0_2_0_0\out_Freq_sweep_1_0.0_-100.0_2_0_0_m2.wav"
+    Max difference is 1 (1 bits, -144.49dB)
+    2880000 samples compared 
+   -----------------------------------------------------------
+    Dif(bits) |    Samples    |   PERCENT  |   First dif
+   -----------------------------------------------------------
+         1    |      14592    |    0.51%   |  0x000000c2   
+   -----------------------------------------------------------
+      Error   |      14592    |    0.51%              
+
+    Max difference is 1 (1 bits, -144.49dB)
+

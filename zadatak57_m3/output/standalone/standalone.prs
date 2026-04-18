@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<settings built="true" last_build_time="1701202116806">
+	<dependencies>
+		<source_file last_build_time="1701201789525" path="src/main.c">
+			<dependency>../../../../include/stdio.h</dependency>
+			<dependency>../../../../include/dsplib/wavefile.h</dependency>
+			<dependency>../../../../include/stdfix.h</dependency>
+			<dependency>../../../../include/scaling_coeff.h</dependency>
+			<dependency>../../../../include/string.h</dependency>
+			<dependency>../inc/common.h</dependency>
+			<dependency>./iir.c</dependency>
+			<dependency>../../../../include/dsplib/timers.h</dependency>
+		</source_file>
+		<source_file last_build_time="1701202115393" path="src/iir.a"/>
+		<source_file last_build_time="1701202115393" path="src/iir.c">
+			<dependency>../inc/common.h</dependency>
+			<dependency>../../../../include/stdfix.h</dependency>
+			<dependency>../../../../include/scaling_coeff.h</dependency>
+		</source_file>
+		<source_file last_build_time="1701201789045" path="src/signalProc.a"/>
+	</dependencies>
+</settings>

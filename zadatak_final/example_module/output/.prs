@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<settings built="true" last_build_time="1701202831062">
+	<dependencies>
+		<source_file last_build_time="1701202830132" path="src/example_module_os_interface.a">
+			<dependency>../../../../../crystal32/common/inc/macros.h</dependency>
+			<dependency>../gen/inc/example_module_module.h</dependency>
+		</source_file>
+		<source_file last_build_time="1701202829625" path="src/iir.a"/>
+		<source_file last_build_time="1701202830629" path="src/example_module_main.a">
+			<dependency>../../../../../include/dsplib/os_asm.h</dependency>
+			<dependency>../gen/inc/example_module_mcv.h</dependency>
+			<dependency>../../../../../include/dsplib/meter_asm.h</dependency>
+			<dependency>../../../../../include/dsplib/response_asm.h</dependency>
+		</source_file>
+		<source_file last_build_time="1701202829147" path="src/signalProc.a">
+			<dependency>../gen/inc/example_module_mcv.h</dependency>
+			<dependency>../../../../../include/dsplib/meter_asm.h</dependency>
+			<dependency>../../../../../include/dsplib/response_asm.h</dependency>
+		</source_file>
+	</dependencies>
+</settings>

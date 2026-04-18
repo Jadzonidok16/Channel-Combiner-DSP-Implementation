@@ -1,0 +1,10 @@
+"C:\Users\Administrator\Desktop\projekat\automated testing\Tools\PCMCompare.exe" -b16 "C:\Users\Administrator\Desktop\projekat\automated testing\test_outputs\2ch_lvl_amt_48k_0_-100.0_0.0_2_0_0\out_2ch_lvl_amt_48k_0_-100.0_0.0_2_0_0_m0.wav" "C:\Users\Administrator\Desktop\projekat\automated testing\test_outputs\2ch_lvl_amt_48k_0_-100.0_0.0_2_0_0\out_2ch_lvl_amt_48k_0_-100.0_0.0_2_0_0_m1.wav"
+      No differences encountered!
+
+      No differences encountered!
+
+"C:\Users\Administrator\Desktop\projekat\automated testing\Tools\PCMCompare.exe" -b16 "C:\Users\Administrator\Desktop\projekat\automated testing\test_outputs\2ch_lvl_amt_48k_0_-100.0_0.0_2_0_0\out_2ch_lvl_amt_48k_0_-100.0_0.0_2_0_0_m1.wav" "C:\Users\Administrator\Desktop\projekat\automated testing\test_outputs\2ch_lvl_amt_48k_0_-100.0_0.0_2_0_0\out_2ch_lvl_amt_48k_0_-100.0_0.0_2_0_0_m2.wav"
+      No differences encountered!
+
+      No differences encountered!
+
